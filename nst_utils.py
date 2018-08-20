@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import imshow
 from PIL import Image
 from nst_utils import *
-
 import numpy as np
 import tensorflow as tf
 
+"""
 class CONFIG:
     IMAGE_WIDTH = 400
     IMAGE_HEIGHT = 300
@@ -22,8 +22,9 @@ class CONFIG:
     STYLE_IMAGE = 'images/stone_style.jpg' # Style image to use.
     CONTENT_IMAGE = 'images/content300.jpg' # Content image to use.
     OUTPUT_DIR = 'output/'
-    
-def load_vgg_model(path):
+"""  
+
+def load_vgg_model(CONFIG):
     """
     Returns a model for the purpose of 'painting' the picture.
     Takes only the convolution layer weights and wrap using the TensorFlow
@@ -75,9 +76,7 @@ def load_vgg_model(path):
         41 is fullyconnected (1, 1, 4096, 1000)
         42 is softmax
     """
-    
-    vgg = scipy.io.loadmat(path)
-
+    vgg = scipy.io.loadmat(CONFIG.VGG_MODEL)
     vgg_layers = vgg['layers']
     
     def _weights(layer, expected_layer_name):
@@ -89,8 +88,6 @@ def load_vgg_model(path):
         b = wb[0][1]
         layer_name = vgg_layers[0][layer][0][0][0][0]
         assert layer_name == expected_layer_name
-        return W, b
-
         return W, b
 
     def _relu(conv2d_layer):
@@ -147,42 +144,36 @@ def load_vgg_model(path):
     graph['conv5_3']  = _conv2d_relu(graph['conv5_2'], 32, 'conv5_3')
     graph['conv5_4']  = _conv2d_relu(graph['conv5_3'], 34, 'conv5_4')
     graph['avgpool5'] = _avgpool(graph['conv5_4'])
-    
     return graph
 
-def generate_noise_image(content_image, noise_ratio = CONFIG.NOISE_RATIO):
+def generate_noise_image(content_image, CONFIG):
     """
     Generates a noisy image by adding random noise to the content_image
     """
     
     # Generate a random noise_image
     noise_image = np.random.uniform(-20, 20, (1, CONFIG.IMAGE_HEIGHT, CONFIG.IMAGE_WIDTH, CONFIG.COLOR_CHANNELS)).astype('float32')
-    
     # Set the input_image to be a weighted average of the content_image and a noise_image
-    input_image = noise_image * noise_ratio + content_image * (1 - noise_ratio)
-    
+    input_image = noise_image * CONFIG.NOISE_RATIO + content_image * (1 - CONFIG.NOISE_RATIO)
     return input_image
 
 
-def reshape_and_normalize_image(image):
+def reshape_and_normalize_image(image, CONFIG):
     """
     Reshape and normalize the input image (content or style)
     """
     
     # Reshape image to mach expected input of VGG16
-    image = np.reshape(image, ((1,) + image.shape))
-    
+    image = np.reshape(image, ((1,) + image.shape))    
     # Substract the mean to match the expected input of VGG16
     image = image - CONFIG.MEANS
-    
     return image
 
 
-def save_image(path, image):
+def save_image(path, image, CONFIG):
     
     # Un-normalize the image so that it looks good
     image = image + CONFIG.MEANS
-    
     # Clip and Save the image
     image = np.clip(image[0], 0, 255).astype('uint8')
     scipy.misc.imsave(path, image)
